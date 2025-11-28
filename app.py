@@ -80,34 +80,29 @@ food_classes = ["apple_pie","cheesecake","chicken_curry","french_fries","fried_r
 st.markdown("---")
 
 # ----------------------------
-# Nutritionix API Function
+# Nutrition API (CalorieNinjas)
 # ----------------------------
-API_APP_ID = "1fb52065"   # Replace with your Nutritionix APP ID
-API_KEY = "db8471b6dd5d1d918c3537c1ff81893c"      # Replace with your Nutritionix API KEY
+API_KEY = "+0EWFO4JUAufJ3ihUVkhuA==atMZbd7lzO5uLWCr"   # Add your new API key here
 
 def get_nutrition(food_name, quantity=100):
     """Fetch nutrition data for a food item (default 100g)."""
-    url = "https://trackapi.nutritionix.com/v2/natural/nutrients"
-    headers = {
-        "x-app-id": API_APP_ID,
-        "x-app-key": API_KEY,
-        "Content-Type": "application/json"
-    }
-    body = {"query": f"{quantity}g {food_name}"}
-    response = requests.post(url, headers=headers, json=body)
+    url = f"https://api.calorieninjas.com/v1/nutrition?query={quantity}g {food_name}"
+    
+    response = requests.get(url, headers={"X-Api-Key": API_KEY})
+    
     if response.status_code == 200:
         data = response.json()
-        if "foods" in data and len(data["foods"]) > 0:
-            food = data["foods"][0]
+        if "items" in data and len(data["items"]) > 0:
+            food = data["items"][0]
             return {
-                "calories": food.get("nf_calories", 0),
-                "protein": food.get("nf_protein", 0),
-                "fat": food.get("nf_total_fat", 0),
-                "carbs": food.get("nf_total_carbohydrate", 0),
-                "sugar": food.get("nf_sugars", "N/A"),
-                "fiber": food.get("nf_dietary_fiber", "N/A"),
-                "sodium": food.get("nf_sodium", "N/A"),
-                "cholesterol": food.get("nf_cholesterol", "N/A")
+                "calories": food.get("calories", 0),
+                "protein": food.get("protein_g", 0),
+                "fat": food.get("fat_total_g", 0),
+                "carbs": food.get("carbohydrates_total_g", 0),
+                "sugar": food.get("sugar_g", "N/A"),
+                "fiber": food.get("fiber_g", "N/A"),
+                "sodium": food.get("sodium_mg", "N/A"),
+                "cholesterol": food.get("cholesterol_mg", "N/A")
             }
     return None
 
