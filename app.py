@@ -326,7 +326,6 @@ if uploaded_file:
 
     with tf.GradientTape() as tape:
         conv_outputs, predictions = grad_model(x)
-        predictions = tf.convert_to_tensor(predictions)
         loss = predictions[:, class_idx]
 
     grads = tape.gradient(loss, conv_outputs)
