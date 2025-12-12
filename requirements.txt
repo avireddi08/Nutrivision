@@ -1,8 +1,0 @@
-streamlit==1.32.0
-tensorflow==2.20.0
-numpy
-pillow
-requests
-matplotlib
-protobuf>=5.28
-h5py
