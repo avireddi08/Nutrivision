@@ -1,7 +1,7 @@
 import streamlit as st
 import tensorflow as tf
-from tensorflow.keras.models import load_model 
-from tensorflow.keras.preprocessing import image 
+from tf.keras.models import load_model 
+from tf.keras.preprocessing import image 
 import numpy as np
 import base64
 import requests
