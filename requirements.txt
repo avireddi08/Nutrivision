@@ -4,5 +4,5 @@ numpy
 pillow
 requests
 matplotlib
-protobuf==3.20.*
+protobuf>=5.28
 h5py
