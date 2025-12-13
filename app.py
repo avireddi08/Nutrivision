@@ -351,7 +351,11 @@ if img is not None:
 
     with tf.GradientTape() as tape:
         conv_outputs, predictions = grad_model(x)
-        class_channel = predictions[:, class_idx]
+        if isinstance(predictions, (list, tuple)):
+            predictions = predictions[0]
+
+            class_channel = predictions[:, class_idx]
+
 
     grads = tape.gradient(class_channel, conv_outputs)
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
