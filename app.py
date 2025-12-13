@@ -312,43 +312,42 @@ if uploaded_file:
             """, unsafe_allow_html=True
         )
 
-""""
-    # ----------------------------
-    # Grad-CAM Section
-    # ----------------------------
-    st.markdown("---")
-    st.markdown("### 🔍 Model Focus (Grad-CAM)")
 
-    last_conv_layer_name = "block_13_expand"
-    grad_model = tf.keras.models.Model(
-        [model.inputs],
-        [model.get_layer(last_conv_layer_name).output, model.output]
-    )
+    # # ----------------------------
+    # # Grad-CAM Section
+    # # ----------------------------
+    # st.markdown("---")
+    # st.markdown("### 🔍 Model Focus (Grad-CAM)")
 
-    with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(x)
-        loss = predictions[:, class_idx]
+    # last_conv_layer_name = "block_13_expand"
+    # grad_model = tf.keras.models.Model(
+    #     [model.inputs],
+    #     [model.get_layer(last_conv_layer_name).output, model.output]
+    # )
 
-    grads = tape.gradient(loss, conv_outputs)
-    pooled_grads = tf.reduce_mean(grads, axis=(0,1,2))
-    conv_outputs = conv_outputs[0].numpy()
-    heatmap = np.sum(conv_outputs * pooled_grads.numpy(), axis=-1)
+    # with tf.GradientTape() as tape:
+    #     conv_outputs, predictions = grad_model(x)
+    #     loss = predictions[:, class_idx]
 
-    # Normalize heatmap
-    heatmap = np.maximum(heatmap, 0)
-    heatmap /= (np.max(heatmap) + 1e-8)
+    # grads = tape.gradient(loss, conv_outputs)
+    # pooled_grads = tf.reduce_mean(grads, axis=(0,1,2))
+    # conv_outputs = conv_outputs[0].numpy()
+    # heatmap = np.sum(conv_outputs * pooled_grads.numpy(), axis=-1)
+
+    # # Normalize heatmap
+    # heatmap = np.maximum(heatmap, 0)
+    # heatmap /= (np.max(heatmap) + 1e-8)
     
-    # Apply colormap
-    colormap = cm.get_cmap("jet")
-    heatmap = np.uint8(255 * (heatmap ** 0.7))  # gamma correction
-    heatmap_colored = colormap(heatmap)
-    heatmap_colored = np.uint8(255 * heatmap_colored[:, :, :3])
+    # # Apply colormap
+    # colormap = cm.get_cmap("jet")
+    # heatmap = np.uint8(255 * (heatmap ** 0.7))  # gamma correction
+    # heatmap_colored = colormap(heatmap)
+    # heatmap_colored = np.uint8(255 * heatmap_colored[:, :, :3])
 
-    # Resize and overlay
-    heatmap_img = Image.fromarray(heatmap_colored).resize(img.size)
-    overlay = Image.blend(img.convert("RGB"), heatmap_img, alpha=0.4)
+    # # Resize and overlay
+    # heatmap_img = Image.fromarray(heatmap_colored).resize(img.size)
+    # overlay = Image.blend(img.convert("RGB"), heatmap_img, alpha=0.4)
 
-    col1, col2 = st.columns(2)
-    col1.image(heatmap_img, caption="Grad-CAM Heatmap (model attention)", use_container_width=True)
-    col2.image(overlay, caption="Overlay (Red = important features)", use_container_width=True)
-"""
+    # col1, col2 = st.columns(2)
+    # col1.image(heatmap_img, caption="Grad-CAM Heatmap (model attention)", use_container_width=True)
+    # col2.image(overlay, caption="Overlay (Red = important features)", use_container_width=True)
