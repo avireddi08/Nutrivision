@@ -106,21 +106,42 @@ def get_nutrition(food_name, quantity=100):
             }
     return None
 
-# ----------------------------
-# Upload image
-# ----------------------------
-uploaded_file = st.file_uploader("Choose a food image", type=["jpg","png","jpeg"])
-if uploaded_file:
-    img = Image.open(uploaded_file).resize((224,224))
-    st.image(img, caption="Uploaded Image", width=300)
 
-    x = image.img_to_array(img)/255.0
+# ----------------------------
+# Image Input (Upload OR Webcam)
+# ----------------------------
+img = None
+
+input_type = st.radio("Select image source", ["📁 Upload Image", "📷 Use Webcam"])
+
+if input_type == "📁 Upload Image":
+    uploaded_file = st.file_uploader("Upload food image", type=["jpg","png","jpeg"])
+    if uploaded_file:
+        img = Image.open(uploaded_file).convert("RGB")
+
+else:
+    cam_img = st.camera_input("Take a picture")
+    if cam_img:
+        img = Image.open(cam_img).convert("RGB")
+
+# ----------------------------
+# Prediction + Grad-CAM
+# ----------------------------
+if img is not None:
+    st.image(img, caption="Input Image", width=300)
+
+    # Preprocess
+    img_resized = img.resize((224,224))
+    x = image.img_to_array(img_resized) / 255.0
     x = np.expand_dims(x, axis=0)
 
-    preds = model.predict(x)
-    class_idx = np.argmax(preds)
+    # ----------------------------
+    # SAFE PREDICTION (FIXED)
+    # ----------------------------
+    preds = model(x, training=False).numpy()
+    class_idx = int(np.argmax(preds[0]))
     food_name = food_classes[class_idx]
-    confidence = preds[0][class_idx]*100
+    confidence = float(preds[0][class_idx]) * 100
 
     # Quantity input
     qty = st.number_input("Enter portion size (grams)", min_value=50, max_value=1000, value=200, step=50)
@@ -311,43 +332,47 @@ if uploaded_file:
             </div>
             """, unsafe_allow_html=True
         )
-
-
-    # # ----------------------------
-    # # Grad-CAM Section
-    # # ----------------------------
-    # st.markdown("---"
-    # st.markdown("### 🔍 Model Focus (Grad-CAM)")
-
-    # last_conv_layer_name = "block_13_expand"
-    # grad_model = tf.keras.models.Model(
-    #     [model.inputs],
-    #     [model.get_layer(last_conv_layer_name).output, model.output]
-    # )
-
-    # with tf.GradientTape() as tape:
-    #     conv_outputs, predictions = grad_model(x)
-    #     loss = predictions[:, class_idx]
-
-    # grads = tape.gradient(loss, conv_outputs)
-    # pooled_grads = tf.reduce_mean(grads, axis=(0,1,2))
-    # conv_outputs = conv_outputs[0].numpy()
-    # heatmap = np.sum(conv_outputs * pooled_grads.numpy(), axis=-1)
-
-    # # Normalize heatmap
-    # heatmap = np.maximum(heatmap, 0)
-    # heatmap /= (np.max(heatmap) + 1e-8)
     
-    # # Apply colormap
-    # colormap = cm.get_cmap("jet")
-    # heatmap = np.uint8(255 * (heatmap ** 0.7))  # gamma correction
-    # heatmap_colored = colormap(heatmap)
-    # heatmap_colored = np.uint8(255 * heatmap_colored[:, :, :3])
+    # ----------------------------
+    # Grad-CAM (FIXED LOGIC)
+    # ----------------------------
+    st.markdown("---")
+    st.markdown("### 🔍 Model Focus (Grad-CAM)")
 
-    # # Resize and overlay
-    # heatmap_img = Image.fromarray(heatmap_colored).resize(img.size)
-    # overlay = Image.blend(img.convert("RGB"), heatmap_img, alpha=0.4)
+    last_conv_layer_name = "block_13_expand"
 
-    # col1, col2 = st.columns(2)
-    # col1.image(heatmap_img, caption="Grad-CAM Heatmap (model attention)", use_container_width=True)
-    # col2.image(overlay, caption="Overlay (Red = important features)", use_container_width=True)
+    grad_model = tf.keras.models.Model(
+        inputs=model.inputs,
+        outputs=[
+            model.get_layer(last_conv_layer_name).output,
+            model.output
+        ]
+    )
+
+    with tf.GradientTape() as tape:
+        conv_outputs, predictions = grad_model(x)
+        class_channel = predictions[:, class_idx]
+
+    grads = tape.gradient(class_channel, conv_outputs)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    conv_outputs = conv_outputs[0]
+    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
+
+    heatmap = tf.maximum(heatmap, 0) / (tf.reduce_max(heatmap) + 1e-8)
+    heatmap = heatmap.numpy()
+
+    # Colorize
+    heatmap = np.uint8(255 * heatmap)
+    colormap = cm.get_cmap("jet")
+    heatmap_colored = colormap(heatmap)
+    heatmap_colored = np.uint8(255 * heatmap_colored[:, :, :3])
+
+    # Resize & overlay
+    heatmap_img = Image.fromarray(heatmap_colored).resize(img.size)
+    overlay = Image.blend(img, heatmap_img, alpha=0.4)
+
+    col1, col2 = st.columns(2)
+    col1.image(heatmap_img, caption="Grad-CAM Heatmap", use_container_width=True)
+    col2.image(overlay, caption="Overlay", use_container_width=True)
+    st.markdown("---")
