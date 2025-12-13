@@ -312,6 +312,7 @@ if uploaded_file:
             """, unsafe_allow_html=True
         )
 
+""""
     # ----------------------------
     # Grad-CAM Section
     # ----------------------------
@@ -350,3 +351,4 @@ if uploaded_file:
     col1, col2 = st.columns(2)
     col1.image(heatmap_img, caption="Grad-CAM Heatmap (model attention)", use_container_width=True)
     col2.image(overlay, caption="Overlay (Red = important features)", use_container_width=True)
+"""
