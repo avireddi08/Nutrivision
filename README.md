@@ -1,5 +1,4 @@
 # 🍽 Nutrivision – AI Food Classifier & Nutrition Tracker
-
 Nutrivision is an AI-powered web application that identifies food items from images and provides real-time nutritional insights.
 It leverages MobileNetV2 (transfer learning) for food classification and integrates a nutrition API for calorie and macronutrient analysis.
 
@@ -13,14 +12,12 @@ It leverages MobileNetV2 (transfer learning) for food classification and integra
 * Clean, responsive UI built with Streamlit
 
 # Tech Stack
-
 * TensorFlow / Keras
 * MobileNetV2 (Transfer Learning)
 * Streamlit
 * Python
-* CaloriNinja's Nutrition API
+* CalorieNinjas Nutrition API
 
 # Live Demo
-
-🔗 Streamlit App: 
+🔗 Streamlit App: https://nutrivision-app.streamlit.app/
 
