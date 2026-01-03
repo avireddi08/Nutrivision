@@ -219,10 +219,10 @@ if img:
     # ----------------------------
     # Grad-CAM
     # ----------------------------
-    st.divider()
     st.subheader("🔍 Model Attention (Grad-CAM)")
 
     last_conv = "block_13_expand"
+
     grad_model = tf.keras.models.Model(
         model.inputs,
         [model.get_layer(last_conv).output, model.output]
@@ -230,25 +230,19 @@ if img:
 
     with tf.GradientTape() as tape:
         conv_out, preds = grad_model(x)
+
+        if isinstance(preds, (list, tuple)):
+            preds = preds[0]
+
         loss = preds[:, class_idx]
 
     grads = tape.gradient(loss, conv_out)
-    pooled = tf.reduce_mean(grads, axis=(0,1,2))
-    heatmap = tf.reduce_sum(conv_out[0] * pooled, axis=-1)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
 
-    heatmap = np.maximum(heatmap, 0)
-    heatmap /= np.max(heatmap) + 1e-8
-    heatmap = np.uint8(255 * heatmap)
-
-    cmap = cm.get_cmap("jet")
-    heatmap = np.uint8(255 * cmap(heatmap)[:,:,:3])
-
-    heatmap_img = Image.fromarray(heatmap).resize(img.size)
-    overlay = Image.blend(img, heatmap_img, 0.4)
-
-    col1, col2 = st.columns(2)
-    col1.image(heatmap_img, caption="Heatmap")
-    col2.image(overlay, caption="Overlay")
+    heatmap = tf.reduce_sum(conv_out[0] * pooled_grads, axis=-1)
+    heatmap = tf.maximum(heatmap, 0)
+    heatmap /= tf.reduce_max(heatmap) + 1e-8
+    heatmap = heatmap.numpy()
 
 # ----------------------------
 # Footer
