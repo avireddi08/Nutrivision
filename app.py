@@ -1,69 +1,62 @@
 import streamlit as st
 import tensorflow as tf
-from tensorflow.keras.models import load_model 
-from tensorflow.keras.preprocessing import image 
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
 import numpy as np
-import base64
 import requests
 from PIL import Image
-import streamlit.components.v1 as components
-import matplotlib.cm as cm  # for applying colormap
+import matplotlib.cm as cm
 import datetime
 
 # ----------------------------
 # Page Config
 # ----------------------------
 st.set_page_config(
-    page_title="Nutrivision - Food Classifier & Nutrition Tracker",
-    layout="centered",
-    initial_sidebar_state="expanded"
+    page_title="Nutrivision",
+    page_icon="🍽",
+    layout="wide"
 )
 
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+with st.sidebar:
+    st.subheader("👤 User Login")
+
+    if st.session_state.user is None:
+        username = st.text_input("Enter username")
+        if st.button("Login"):
+            if username.strip():
+                st.session_state.user = username.strip()
+                st.session_state.diary = []
+                st.success(f"Welcome, {username}!")
+                st.rerun()
+    else:
+        st.success(f"Logged in as **{st.session_state.user}**")
+        if st.button("Logout"):
+            st.session_state.clear()
+            st.rerun()
+
+if st.session_state.user is None:
+    st.info("👈 Please login from the sidebar to start using Nutrivision.")
+    st.stop()
+
 # ----------------------------
-# App Header
+# Header
 # ----------------------------
 st.markdown(
     """
-    <div style='text-align:center; padding:20px;'>
-        <h1 style='font-size:50px; color:white; margin-bottom:5px;'>🍽 Nutrivision</h1>
-        <h3 style='font-size:20px; color:white; margin-top:0;'>See your meal. Know your nutrients.</h3>
-        <p style='font-size:16px; color:white; max-width:700px; margin:auto;'>
-            Snap a picture of your food or upload an image, and Nutrivision will analyze it,
-            provide detailed nutrition info, and track calories in real-time.
+    <div style="text-align:center; padding: 1.5rem 0;">
+        <h1>🍽 Nutrivision</h1>
+        <p style="font-size:1.1rem; color:gray;">
+            Snap your meal. Understand your nutrition. Track smarter.
         </p>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# ----------------------------
-# Background image with dark overlay
-# ----------------------------
-def set_bg_local(image_file):
-    with open(image_file, "rb") as f:
-        data = f.read()
-    encoded = base64.b64encode(data).decode()
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{encoded}");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }}
-        .stApp .main {{
-            background-color: rgba(255,255,255,0.85);
-            border-radius: 15px;
-            padding: 30px;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-# Call the function with your background image
-set_bg_local("bgimg.png")
+st.divider()
 
 # ----------------------------
 # Load model
@@ -74,309 +67,185 @@ def load_food_model():
 
 model = load_food_model()
 
-food_classes = ["apple_pie","cheesecake","chicken_curry","french_fries","fried_rice",
-                "hamburger","hot_dog","ice_cream","omelette","pizza","sushi"]
-
-st.markdown("---")
+food_classes = [
+    "apple_pie","cheesecake","chicken_curry","french_fries","fried_rice",
+    "hamburger","hot_dog","ice_cream","omelette","pizza","sushi"
+]
 
 # ----------------------------
-# Nutrition API (CalorieNinjas)
+# Nutrition API
 # ----------------------------
 API_KEY = "+0EWFO4JUAufJ3ihUVkhuA==atMZbd7lzO5uLWCr"   # Add your new API key here
 
-def get_nutrition(food_name, quantity=100):
-    """Fetch nutrition data for a food item (default 100g)."""
+def get_nutrition(food_name, quantity):
     url = f"https://api.calorieninjas.com/v1/nutrition?query={quantity}g {food_name}"
-    
     response = requests.get(url, headers={"X-Api-Key": API_KEY})
-    
     if response.status_code == 200:
         data = response.json()
-        if "items" in data and len(data["items"]) > 0:
-            food = data["items"][0]
+        if data["items"]:
+            f = data["items"][0]
             return {
-                "calories": food.get("calories", 0),
-                "protein": food.get("protein_g", 0),
-                "fat": food.get("fat_total_g", 0),
-                "carbs": food.get("carbohydrates_total_g", 0),
-                "sugar": food.get("sugar_g", "N/A"),
-                "fiber": food.get("fiber_g", "N/A"),
-                "sodium": food.get("sodium_mg", "N/A"),
-                "cholesterol": food.get("cholesterol_mg", "N/A")
+                "calories": f.get("calories", 0),
+                "protein": f.get("protein_g", 0),
+                "fat": f.get("fat_total_g", 0),
+                "carbs": f.get("carbohydrates_total_g", 0),
+                "sugar": f.get("sugar_g", 0),
+                "fiber": f.get("fiber_g", 0),
+                "sodium": f.get("sodium_mg", 0),
+                "cholesterol": f.get("cholesterol_mg", 0),
             }
     return None
 
+# ----------------------------
+# Image Input
+# ----------------------------
+st.subheader("📸 Add Food Image")
 
-# ----------------------------
-# Image Input (Upload OR Webcam)
-# ----------------------------
 img = None
+input_type = st.radio("Image source", ["Upload Image", "Use Webcam"], horizontal=True)
 
-input_type = st.radio("Select image source", ["📁 Upload Image", "📷 Use Webcam"])
-
-if input_type == "📁 Upload Image":
-    uploaded_file = st.file_uploader("Upload food image", type=["jpg","png","jpeg"])
-    if uploaded_file:
-        img = Image.open(uploaded_file).convert("RGB")
-
+if input_type == "Upload Image":
+    uploaded = st.file_uploader("Upload image", type=["jpg","jpeg","png"])
+    if uploaded:
+        img = Image.open(uploaded).convert("RGB")
 else:
-    cam_img = st.camera_input("Take a picture")
-    if cam_img:
-        img = Image.open(cam_img).convert("RGB")
+    cam = st.camera_input("Take a picture")
+    if cam:
+        img = Image.open(cam).convert("RGB")
 
 # ----------------------------
-# Prediction + Grad-CAM
+# Prediction
 # ----------------------------
-if img is not None:
-    st.image(img, caption="Input Image", width=300)
+if img:
+    st.image(img, width=280)
 
-    # Preprocess
     img_resized = img.resize((224,224))
     x = image.img_to_array(img_resized) / 255.0
     x = np.expand_dims(x, axis=0)
 
-    # ----------------------------
-    # SAFE PREDICTION (FIXED)
-    # ----------------------------
     preds = model(x, training=False).numpy()
-    class_idx = int(np.argmax(preds[0]))
+    class_idx = np.argmax(preds[0])
     food_name = food_classes[class_idx]
-    confidence = float(preds[0][class_idx]) * 100
+    confidence = preds[0][class_idx] * 100
+    st.progress(int(confidence))
 
-    # Quantity input
-    qty = st.number_input("Enter portion size (grams)", min_value=50, max_value=1000, value=200, step=50)
+    qty = st.slider("Portion size (grams)", 50, 1000, 200, step=50)
+    nutrition = get_nutrition(food_name.replace("_"," "), qty)
 
-    # Get nutrition from API
-    nutrition = get_nutrition(food_name.replace("_", " "), qty)
+    st.divider()
+    st.subheader("✨ Prediction Result")
 
-    st.markdown("---")
-    st.markdown("### ✨ Results")
-
-    # ----------------------------
-    # CSS for result cards
-    # ----------------------------
-    st.markdown("""
-    <style>
-    .result-card {
-        border-radius: 15px;
-        padding: 20px;
-        color: black;
-        text-align: center;
-        font-size: 18px;
-        font-weight: bold;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-    .result-title { font-size: 16px; margin-bottom: 8px; }
-    .result-value { font-size: 20px; font-weight: bold; }
-    .pred-card { background: linear-gradient(135deg, #ff9a9e, #fad0c4); }
-    .conf-card { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); }
-    .cal-card { background: linear-gradient(135deg, #fddb92, #d1fdff); }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Main result cards
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(
-            f"<div class='result-card pred-card'>"
-            f"<div class='result-title'>🍽 Food</div>"
-            f"<div class='result-value'>{food_name.replace('_',' ').title()}</div>"
-            f"</div>", unsafe_allow_html=True)
-    with col2:
-        st.markdown(
-            f"<div class='result-card conf-card'>"
-            f"<div class='result-title'>📊 Confidence</div>"
-            f"<div class='result-value'>{confidence:.2f}%</div>"
-            f"</div>", unsafe_allow_html=True)
-    with col3:
-        cal_text = f"{nutrition['calories']} kcal" if nutrition else "N/A"
-        st.markdown(
-            f"<div class='result-card cal-card'>"
-            f"<div class='result-title'>🔥 Calories</div>"
-            f"<div class='result-value'>{cal_text}</div>"
-            f"</div>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Food", food_name.replace("_"," ").title())
+    c2.metric("Confidence", f"{confidence:.1f}%")
+    c3.metric("Calories", f"{nutrition['calories']} kcal" if nutrition else "N/A")
 
     # ----------------------------
-    # Additional Nutrition Info Card (Beautiful HTML)
+    # Nutrition Details
     # ----------------------------
     if nutrition:
-        nutrient_html = f"""
-        <div style='border-radius:15px; padding:20px; background:linear-gradient(135deg,#fdfbfb,#ebedee); 
-                    box-shadow:0 4px 10px rgba(0,0,0,0.2); margin-top:20px;'>
-
-            <div style='font-weight:bold; font-size:18px; margin-bottom:15px;'>🥗 Nutrition Details</div>
-
-            <div style='display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ccc; 
-                        background:#ffefef; border-radius:8px; margin-bottom:5px;'>
-                <span>💪 Protein</span><span>{nutrition.get("protein","N/A")} g</span>
-            </div>
-            <div style='display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ccc; 
-                        background:#fff3e0; border-radius:8px; margin-bottom:5px;'>
-                <span>🥓 Fat</span><span>{nutrition.get("fat","N/A")} g</span>
-            </div>
-            <div style='display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ccc; 
-                        background:#e0f7fa; border-radius:8px; margin-bottom:5px;'>
-                <span>🍞 Carbohydrates</span><span>{nutrition.get("carbs","N/A")} g</span>
-            </div>
-            <div style='display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ccc; 
-                        background:#fffde7; border-radius:8px; margin-bottom:5px;'>
-                <span>🍬 Sugar</span><span>{nutrition.get("sugar","N/A")} g</span>
-            </div>
-            <div style='display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ccc; 
-                        background:#f1f8e9; border-radius:8px; margin-bottom:5px;'>
-                <span>🌾 Fiber</span><span>{nutrition.get("fiber","N/A")} g</span>
-            </div>
-            <div style='display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ccc; 
-                        background:#e0f2f1; border-radius:8px; margin-bottom:5px;'>
-                <span>🧂 Sodium</span><span>{nutrition.get("sodium","N/A")} mg</span>
-            </div>
-            <div style='display:flex; justify-content:space-between; padding:10px; 
-                        background:#f3e5f5; border-radius:8px;'>
-                <span>🥚 Cholesterol</span><span>{nutrition.get("cholesterol","N/A")} mg</span>
-            </div>
-        </div>
-        """
-        components.html(nutrient_html, height=450)
-
+        with st.expander("🥗 Nutrition Breakdown"):
+            st.write(f"**Protein:** {nutrition['protein']} g")
+            st.write(f"**Fat:** {nutrition['fat']} g")
+            st.write(f"**Carbs:** {nutrition['carbs']} g")
+            st.write(f"**Sugar:** {nutrition['sugar']} g")
+            st.write(f"**Fiber:** {nutrition['fiber']} g")
+            st.write(f"**Sodium:** {nutrition['sodium']} mg")
+            st.write(f"**Cholesterol:** {nutrition['cholesterol']} mg")
+                
     # ----------------------------
-    # Initialize session state for diary
+    # Diary (SAFE & CLEAN)
     # ----------------------------
     if "diary" not in st.session_state:
         st.session_state.diary = []
 
-    # ----------------------------
-    # Function: Calculate health score
-    # ----------------------------
-    def health_score(nutrition):
-        """
-        Simple health score from 1-10 based on calories, fat, sugar, and fiber.
-        """
-        score = 5
-        calories = nutrition.get("calories", 0)
-        fat = nutrition.get("fat", 0)
-        sugar = nutrition.get("sugar", 0)
-        fiber = nutrition.get("fiber", 0)
+    def health_score(n):
+        calories = n.get("calories", 0)
+        protein = n.get("protein", 0)
+        fat = n.get("fat", 0)
+        carbs = n.get("carbs", 0)
+        sugar = n.get("sugar", 0)
+        fiber = n.get("fiber", 0)
 
-        if calories < 300: score += 1
-        if fat < 10: score += 1
-        if sugar < 5: score += 1
-        if fiber > 5: score += 1
+        score = 10
 
-        return min(score, 10)
+        # Penalties
+        if calories > 600: score -= 2
+        if fat > 20: score -= 2
+        if sugar > 10: score -= 2
 
-    # ----------------------------
-    # Log current meal
-    # ----------------------------
+        # Rewards
+        if protein >= 15: score += 1
+        if fiber >= 5: score += 1
+
+        # Carb-heavy penalty
+        if carbs > 50 and fiber < 5:
+            score -= 1
+
+        return max(1, min(score, 10))
+
+
     current_score = health_score(nutrition)
 
-    st.session_state.diary.append({
-        "date": datetime.date.today().isoformat(),
-        "food": food_name.replace("_"," ").title(),
-        "portion": qty,
-        "calories": nutrition.get("calories", 0),
-        "protein": nutrition.get("protein", 0),
-        "fat": nutrition.get("fat", 0),
-        "carbs": nutrition.get("carbs", 0),
-        "fiber": nutrition.get("fiber", 0),
-        "sugar": nutrition.get("sugar", 0),
-        "health_score": current_score
-    })
+    # ----------------------------
+    # Add to diary button
+    # ----------------------------
+    if st.button("➕ Add Meal to Diary"):
+        st.session_state.diary.append({
+            "date": datetime.date.today(),
+            "food": food_name.replace("_", " ").title(),
+            "portion": qty,
+            "calories": nutrition["calories"],
+            "score": current_score
+        })
+        st.success("Meal added to diary!")
+
+    st.divider()
+    st.subheader("📝 Food Diary")
 
     # ----------------------------
-    # Display Daily Diary
+    # Display diary
     # ----------------------------
-    st.markdown("---")
-    st.markdown("### 📝 Food Diary")
-
-    if len(st.session_state.diary) == 0:
+    if not st.session_state.diary:
         st.info("No meals logged yet.")
     else:
-        diary_sorted = sorted(st.session_state.diary, key=lambda x: x["health_score"], reverse=True)
-        for entry in diary_sorted:
-            st.markdown(
-                f"""
-                <div style='border-radius:10px; padding:15px; margin-bottom:10px; 
-                            background:linear-gradient(135deg,#f0f0f0,#ffffff); 
-                            box-shadow:0 4px 8px; color:black;'>
-                    <div style='font-weight:bold; font-size:16px;'>{entry['food']} ({entry['portion']} g)</div>
-                    <div style='display:flex; justify-content:space-between; padding-top:5px;'>
-                        <span>🔥 Calories: {entry['calories']} kcal</span>
-                        <span>💪 Health Score: {entry['health_score']}/10</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True
+        for m in st.session_state.diary:
+            badge = "🟢 Good" if m["score"] >= 7 else "🟡 Average" if m["score"] >= 5 else "🔴 Poor"
+            st.info(
+                f"**{m['food']}** ({m['portion']} g)\n\n"
+                f"🔥 {m['calories']} kcal | 💪 Health Score: {m['score']}/10 {badge}"
             )
 
     # ----------------------------
-    # Daily Summary
+    # Grad-CAM
     # ----------------------------
-    total_calories = sum(m["calories"] for m in st.session_state.diary)
-    total_protein = sum(m["protein"] for m in st.session_state.diary)
-    total_fat = sum(m["fat"] for m in st.session_state.diary)
-    total_carbs = sum(m["carbs"] for m in st.session_state.diary)
-    total_fiber = sum(m["fiber"] for m in st.session_state.diary)
+    st.divider()
+    st.subheader("🔍 Model Attention (Grad-CAM)")
 
-    if len(st.session_state.diary) > 0:
-        st.markdown("---")
-        st.markdown("### 📊 Nutrition Summary")
-        st.markdown(
-            f"""
-            <div style='border-radius:10px; padding:15px; background:#e8f5e9; box-shadow:0 4px 8px; color:black;'>
-                <div>🔥 Total Calories: {total_calories} kcal</div>
-                <div>💪 Protein: {total_protein} g | 🥓 Fat: {total_fat} g | 🍞 Carbs: {total_carbs} g | 🌾 Fiber: {total_fiber} g</div>
-            </div>
-            """, unsafe_allow_html=True
-        )
-    
-    # ----------------------------
-    # Grad-CAM (FIXED LOGIC)
-    # ----------------------------
-    st.markdown("---")
-    st.markdown("### 🔍 Model Focus (Grad-CAM)")
-
-    last_conv_layer_name = "block_13_expand"
-
+    last_conv = "block_13_expand"
     grad_model = tf.keras.models.Model(
-        inputs=model.inputs,
-        outputs=[
-            model.get_layer(last_conv_layer_name).output,
-            model.output
-        ]
+        model.inputs,
+        [model.get_layer(last_conv).output, model.output]
     )
 
     with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(x)
-        if isinstance(predictions, (list, tuple)):
-            predictions = predictions[0]
+        conv_out, preds = grad_model(x)
+        loss = preds[:, class_idx]
 
-            class_channel = predictions[:, class_idx]
+    grads = tape.gradient(loss, conv_out)
+    pooled = tf.reduce_mean(grads, axis=(0,1,2))
+    heatmap = tf.reduce_sum(conv_out[0] * pooled, axis=-1)
 
-
-    grads = tape.gradient(class_channel, conv_outputs)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-
-    conv_outputs = conv_outputs[0]
-    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
-
-    heatmap = tf.maximum(heatmap, 0) / (tf.reduce_max(heatmap) + 1e-8)
-    heatmap = heatmap.numpy()
-
-    # Colorize
+    heatmap = np.maximum(heatmap, 0)
+    heatmap /= np.max(heatmap) + 1e-8
     heatmap = np.uint8(255 * heatmap)
-    colormap = cm.get_cmap("jet")
-    heatmap_colored = colormap(heatmap)
-    heatmap_colored = np.uint8(255 * heatmap_colored[:, :, :3])
 
-    # Resize & overlay
-    heatmap_img = Image.fromarray(heatmap_colored).resize(img.size)
-    overlay = Image.blend(img, heatmap_img, alpha=0.4)
+    cmap = cm.get_cmap("jet")
+    heatmap = np.uint8(255 * cmap(heatmap)[:,:,:3])
+
+    heatmap_img = Image.fromarray(heatmap).resize(img.size)
+    overlay = Image.blend(img, heatmap_img, 0.4)
 
     col1, col2 = st.columns(2)
-    col1.image(heatmap_img, caption="Grad-CAM Heatmap", use_container_width=True)
-    col2.image(overlay, caption="Overlay", use_container_width=True)
-    st.markdown("---")
+    col1.image(heatmap_img, caption="Heatmap")
+    col2.image(overlay, caption="Overlay")
