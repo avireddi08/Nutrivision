@@ -249,3 +249,19 @@ if img:
     col1, col2 = st.columns(2)
     col1.image(heatmap_img, caption="Heatmap")
     col2.image(overlay, caption="Overlay")
+
+# ----------------------------
+# Footer
+# ----------------------------
+
+st.divider()
+
+st.markdown(
+    f"""
+    <div style="text-align:center; color: gray; font-size: 0.85rem; padding: 1rem 0;">
+        © {datetime.datetime.now().year} Nutrivision | All rights reserved.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
