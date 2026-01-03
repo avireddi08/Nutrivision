@@ -219,30 +219,30 @@ if img:
     # ----------------------------
     # Grad-CAM
     # ----------------------------
-    st.subheader("🔍 Model Attention (Grad-CAM)")
+    # st.subheader("🔍 Model Attention (Grad-CAM)")
 
-    last_conv = "block_13_expand"
+    # last_conv = "block_13_expand"
 
-    grad_model = tf.keras.models.Model(
-        model.inputs,
-        [model.get_layer(last_conv).output, model.output]
-    )
+    # grad_model = tf.keras.models.Model(
+    #     model.inputs,
+    #     [model.get_layer(last_conv).output, model.output]
+    # )
 
-    with tf.GradientTape() as tape:
-        conv_out, preds = grad_model(x)
+    # with tf.GradientTape() as tape:
+    #     conv_out, preds = grad_model(x)
 
-        if isinstance(preds, (list, tuple)):
-            preds = preds[0]
+    #     if isinstance(preds, (list, tuple)):
+    #         preds = preds[0]
 
-        loss = preds[:, class_idx]
+    #     loss = preds[:, class_idx]
 
-    grads = tape.gradient(loss, conv_out)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+    # grads = tape.gradient(loss, conv_out)
+    # pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
 
-    heatmap = tf.reduce_sum(conv_out[0] * pooled_grads, axis=-1)
-    heatmap = tf.maximum(heatmap, 0)
-    heatmap /= tf.reduce_max(heatmap) + 1e-8
-    heatmap = heatmap.numpy()
+    # heatmap = tf.reduce_sum(conv_out[0] * pooled_grads, axis=-1)
+    # heatmap = tf.maximum(heatmap, 0)
+    # heatmap /= tf.reduce_max(heatmap) + 1e-8
+    # heatmap = heatmap.numpy()
 
 # ----------------------------
 # Footer
